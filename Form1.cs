@@ -14,10 +14,27 @@ namespace cmusic
         private WaveOutEvent outputDevice;
         private AudioFileReader audioFile;
         private bool isScrubbing = false;
+        private NotifyIcon trayIcon;
+        private ContextMenuStrip trayMenu;
+
 
         public Form1()
         {
             InitializeComponent();
+            trayMenu = new ContextMenuStrip();
+            trayMenu.Items.Add("Restore", null, (s, e) => ShowFromTray());
+            trayMenu.Items.Add("Exit", null, (s, e) => {
+                trayIcon.Visible = false;
+                Application.Exit();
+            });
+
+            trayIcon = new NotifyIcon();
+            trayIcon.Text = "CMusic";
+            trayIcon.Icon = new Icon("favicon.ico");
+            trayIcon.ContextMenuStrip = trayMenu;
+            trayIcon.Visible = true;
+
+            trayIcon.DoubleClick += (s, e) => ShowFromTray();
             this.Text = "CMusic";
             string path = "config.txt";
             string imagepath;
@@ -231,18 +248,30 @@ namespace cmusic
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                this.Hide();
+                trayIcon.ShowBalloonTip(1000, "CMusic", "Minimized to tray. Double-click the icon to restore.", ToolTipIcon.Info);
+                return;
+            }
+            else
+            {
+                base.OnFormClosing(e);
+
+                if (outputDevice != null)
+                {
+                    outputDevice.Stop();
+                    outputDevice.Dispose();
+                }
+
+                if (audioFile != null)
+                {
+                    audioFile.Dispose();
+                }
+            }
+
             base.OnFormClosing(e);
-
-            if (outputDevice != null)
-            {
-                outputDevice.Stop();
-                outputDevice.Dispose();
-            }
-
-            if (audioFile != null)
-            {
-                audioFile.Dispose();
-            }
         }
 
         private TimeSpan GetTimeRemaining()
@@ -345,5 +374,13 @@ namespace cmusic
                 }
             }
         }
+
+        private void ShowFromTray()
+        {
+            this.Show();
+            this.WindowState = FormWindowState.Normal;
+            this.BringToFront();
+        }
+
     }
 }
