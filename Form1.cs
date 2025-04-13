@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Drawing;
@@ -20,6 +20,7 @@ namespace cmusic
             InitializeComponent();
             this.Text = "CMusic";
             string path = "config.txt";
+            string imagepath;
             string[] lines;
 
             if (File.Exists(path))
@@ -31,7 +32,8 @@ namespace cmusic
                 lines = new string[]
                 {
                     "BACKGROUND=BLACK",
-                    "COLOR=WHITE"
+                    "COLOR=WHITE",
+                    "BGIMAGE="
                 };
                 File.WriteAllLines(path, lines);
             }
@@ -61,6 +63,19 @@ namespace cmusic
                 this.ForeColor = Color.FromName(config["COLOR"]);
                 ApplyColorsToControls(this.Controls, this.ForeColor);
             }
+            if (config.ContainsKey("BGIMAGE") && File.Exists(config["BGIMAGE"]))
+            {
+                try
+                {
+                    this.BackgroundImage = Image.FromFile(config["BGIMAGE"]);
+                    this.BackgroundImageLayout = ImageLayout.Stretch;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to load background image: " + ex.Message);
+                }
+            }
+
 
 
             this.Resize += Form1_Resize;
@@ -76,7 +91,7 @@ namespace cmusic
         {
             OpenFileDialog ofd = new OpenFileDialog();
             ofd.Multiselect = true;
-            ofd.Filter = "Audio Files|*.mp3;*.wav;*.aac;*.wma";
+            ofd.Filter = "Audio Files|*.mp3;*.wav;*.aac;*.wma;*.opus;*.flac";
 
             if (ofd.ShowDialog() == DialogResult.OK)
             {
@@ -330,6 +345,5 @@ namespace cmusic
                 }
             }
         }
-
     }
 }
