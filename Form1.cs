@@ -17,6 +17,10 @@ namespace cmusic
         private NotifyIcon trayIcon;
         private ContextMenuStrip trayMenu;
 
+        // Visualizer
+        private Timer visualizerTimer;
+        private float[] visualSamples = new float[32]; // Number of bars
+        private Random rng = new Random();
 
         public Form1()
         {
@@ -50,6 +54,7 @@ namespace cmusic
                 {
                     "BACKGROUND=BLACK",
                     "COLOR=WHITE",
+                    "VISUALIZER=true",
                     "BGIMAGE="
                 };
                 File.WriteAllLines(path, lines);
@@ -67,13 +72,13 @@ namespace cmusic
             }
 
             if (config.ContainsKey("BACKGROUND"))
-                this.BackColor = Color.FromName(config["BACKGROUND"]);
-                this.button1.BackColor = Color.FromName(config["BACKGROUND"]);
-                this.play.BackColor = Color.FromName(config["BACKGROUND"]);
-                this.pause.BackColor = Color.FromName(config["BACKGROUND"]);
-                this.skip.BackColor = Color.FromName(config["BACKGROUND"]);
-                this.load.BackColor = Color.FromName(config["BACKGROUND"]);
-                this.listBox1.BackColor = Color.FromName(config["BACKGROUND"]);
+             this.BackColor = Color.FromName(config["BACKGROUND"]);
+            this.button1.BackColor = Color.FromName(config["BACKGROUND"]);
+            this.play.BackColor = Color.FromName(config["BACKGROUND"]);
+            this.pause.BackColor = Color.FromName(config["BACKGROUND"]);
+            this.skip.BackColor = Color.FromName(config["BACKGROUND"]);
+            this.load.BackColor = Color.FromName(config["BACKGROUND"]);
+            this.listBox1.BackColor = Color.FromName(config["BACKGROUND"]);
 
             if (config.ContainsKey("COLOR"))
             {
@@ -93,7 +98,13 @@ namespace cmusic
                 }
             }
 
+            // Initialize visualizer timer and event
+            visualizerTimer = new Timer();
+            visualizerTimer.Interval = 50;
+            visualizerTimer.Tick += VisualizerTimer_Tick;
+            visualizerTimer.Start();
 
+            visualizerBox.Paint += VisualizerBox_Paint;
 
             this.Resize += Form1_Resize;
             CenterLabel();
@@ -365,9 +376,6 @@ namespace cmusic
             {
                 ctrl.ForeColor = foreColor;
 
-                // Optionally update background color too
-                // ctrl.BackColor = this.BackColor;
-
                 if (ctrl.HasChildren)
                 {
                     ApplyColorsToControls(ctrl.Controls, foreColor);
@@ -382,5 +390,42 @@ namespace cmusic
             this.BringToFront();
         }
 
+        // Visualizer code
+        private void VisualizerTimer_Tick(object sender, EventArgs e)
+        {
+            if (audioFile != null)
+            {
+                // Simulating with random values for now (replace this with actual audio data)
+                for (int i = 0; i < visualSamples.Length; i++)
+                {
+                    visualSamples[i] = (float)rng.NextDouble();
+                }
+            }
+            visualizerBox.Invalidate(); // Triggers a repaint
+        }
+
+        private void VisualizerBox_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.Clear(visualizerBox.BackColor);
+            visualizerBox.BackColor = Color.Black;
+            int barCount = visualSamples.Length;
+            float barWidth = visualizerBox.Width / (float)barCount;
+            Brush barBrush = Brushes.Lime;
+
+            for (int i = 0; i < barCount; i++)
+            {
+                float val = visualSamples[i];
+                float barHeight = val * visualizerBox.Height;
+                float x = i * barWidth;
+                float y = visualizerBox.Height - barHeight;
+                g.FillRectangle(barBrush, x, y, barWidth - 2, barHeight);
+            }
+        }
+
+        private void visualizerBox_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
