@@ -44,6 +44,7 @@ namespace cmusic
                 if (loop.Checked)
                 {
                     loop_single.Checked = false;
+                    shuffle.Checked = false;
                 }
             };
 
@@ -52,6 +53,16 @@ namespace cmusic
                 if (loop_single.Checked)
                 {
                     loop.Checked = false;
+                    shuffle.Checked = false;
+                }
+            };
+
+            shuffle.CheckedChanged += (s, e) =>
+            {
+                if (shuffle.Checked)
+                {
+                    loop.Checked = false;
+                    loop_single.Checked = false;
                 }
             };
 
