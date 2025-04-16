@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using NAudio.Wave;
+using System.Security.Cryptography;
 
 namespace cmusic
 {
@@ -31,6 +32,46 @@ namespace cmusic
                 trayIcon.Visible = false;
                 Application.Exit();
             });
+            trayMenu.Items.Add("Save Playlist", null, (s, e) => SavePlaylist());
+            trayMenu.Items.Add("Load Playlist", null, (s, e) => LoadPlaylist());
+            var toggleVisualizerItem = new ToolStripMenuItem("Enable Visualizer")
+            {
+                CheckOnClick = true,
+                Checked = visualizerBox.Visible
+            };
+            loop.CheckedChanged += (s, e) =>
+            {
+                if (loop.Checked)
+                {
+                    loop_single.Checked = false;
+                }
+            };
+
+            loop_single.CheckedChanged += (s, e) =>
+            {
+                if (loop_single.Checked)
+                {
+                    loop.Checked = false;
+                }
+            };
+
+            toggleVisualizerItem.CheckedChanged += (s, e) =>
+            {
+                visualizerBox.Visible = toggleVisualizerItem.Checked;
+                if(toggleVisualizerItem.Checked)
+                {
+                    visualizerBox.Size = new Size(169, 160);
+                    listBox1.Size = new Size(226, 160);
+                }
+                else
+                {
+                    visualizerBox.Size = new Size(0, 0);
+                    listBox1.Size = new Size(226 + 182, 160);
+                }
+                
+            };
+
+            trayMenu.Items.Add(toggleVisualizerItem);
 
             trayIcon = new NotifyIcon();
             trayIcon.Text = "CMusic";
@@ -55,7 +96,10 @@ namespace cmusic
                     "BACKGROUND=BLACK",
                     "COLOR=WHITE",
                     "VISUALIZER=true",
-                    "BGIMAGE="
+                    "BGIMAGE=",
+                    "FONT=",
+                    "FONTSIZE=",
+                    "HEADER="
                 };
                 File.WriteAllLines(path, lines);
             }
@@ -72,18 +116,36 @@ namespace cmusic
             }
 
             if (config.ContainsKey("BACKGROUND"))
-             this.BackColor = Color.FromName(config["BACKGROUND"]);
-            this.button1.BackColor = Color.FromName(config["BACKGROUND"]);
-            this.play.BackColor = Color.FromName(config["BACKGROUND"]);
-            this.pause.BackColor = Color.FromName(config["BACKGROUND"]);
-            this.skip.BackColor = Color.FromName(config["BACKGROUND"]);
-            this.load.BackColor = Color.FromName(config["BACKGROUND"]);
-            this.listBox1.BackColor = Color.FromName(config["BACKGROUND"]);
-
+            {
+                try
+                {
+                    this.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.button1.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.play.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.pause.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.skip.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.load.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.listBox1.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.button2.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.button2.BackColor = Color.FromName(config["BACKGROUND"]);
+                    this.button3.BackColor = Color.FromName(config["BACKGROUND"]);
+                }
+                catch (Exception ex) 
+                {
+                    MessageBox.Show($"Failed to change background color: {ex}");
+                }
+            }
             if (config.ContainsKey("COLOR"))
             {
-                this.ForeColor = Color.FromName(config["COLOR"]);
-                ApplyColorsToControls(this.Controls, this.ForeColor);
+                try
+                {
+                    this.ForeColor = Color.FromName(config["COLOR"]);
+                    ApplyColorsToControls(this.Controls, this.ForeColor);
+                }
+                catch (Exception ex) 
+                {
+                    MessageBox.Show($"Failed to load color: {ex.Message}");
+                }
             }
             if (config.ContainsKey("BGIMAGE") && File.Exists(config["BGIMAGE"]))
             {
@@ -95,6 +157,42 @@ namespace cmusic
                 catch (Exception ex)
                 {
                     MessageBox.Show("Failed to load background image: " + ex.Message);
+                }
+            }
+            if (config.ContainsKey("FONT")) 
+            {
+                try
+                {
+                    int fontSize = int.Parse(config["FONTSIZE"]);
+                    string font = (config["FONT"]);
+                    //this.Font = new Font(font, fontSize);
+                    this.button1.Font = new Font(font, fontSize);
+                    this.play.Font = new Font(font, fontSize);
+                    this.pause.Font = new Font(font, fontSize);
+                    this.skip.Font = new Font(font, fontSize);
+                    this.load.Font = new Font(font, fontSize);
+                    this.listBox1.Font = new Font(font, fontSize);
+                    this.button2.Font = new Font(font, fontSize);
+                    this.button2.Font = new Font(font, fontSize);
+                    this.button3.Font = new Font(font, fontSize);
+                    this.label2.Font = new Font(font, fontSize);
+                    this.label1.Font = new Font(font, fontSize);
+                    this.label3.Font = new Font(font, fontSize);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to load font: {ex.Message}");
+                }
+            }
+            if (config.ContainsKey("HEADER"))
+            {
+                try
+                {
+                    label2.Text = config["HEADER"];
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to load header: {ex}");
                 }
             }
 
@@ -151,32 +249,86 @@ namespace cmusic
 
         private void skip_Click(object sender, EventArgs e)
         {
-            currentTrackIndex++;
-            if (currentTrackIndex < playlist.Count)
+            if (playlist.Count == 0)
             {
-                PlayCurrentTrack();
-                UpdateLabel();
+                MessageBox.Show("No playlist loaded.");
+                return;
+            }
+
+            if (shuffle.Checked)
+            {
+                // Shuffle mode: Pick a random track that is not the current one
+                Random rand = new Random();
+                int newTrackIndex;
+                do
+                {
+                    newTrackIndex = rand.Next(playlist.Count);
+                } while (newTrackIndex == currentTrackIndex && playlist.Count > 1); // Ensure a different track
+                currentTrackIndex = newTrackIndex;
             }
             else
             {
-                MessageBox.Show("End of playlist.");
-                currentTrackIndex = 0;
+                // Normal mode: Move to the next track
+                currentTrackIndex++;
+                if (currentTrackIndex >= playlist.Count)
+                {
+                    if (loop.Checked)
+                    {
+                        currentTrackIndex = 0; // Loop back to the start
+                    }
+                    else
+                    {
+                        MessageBox.Show("End of playlist.");
+                        currentTrackIndex = playlist.Count - 1; // Stay at the last track
+                        return;
+                    }
+                }
             }
+
+            PlayCurrentTrack();
+            UpdateLabel();
         }
 
         private void previous_Click(object sender, EventArgs e)
         {
-            currentTrackIndex--;
-            if (currentTrackIndex < playlist.Count && currentTrackIndex >= 0)
+            if (playlist.Count == 0)
             {
-                PlayCurrentTrack();
-                UpdateLabel();
+                MessageBox.Show("No playlist loaded.");
+                return;
+            }
+
+            if (shuffle.Checked)
+            {
+                // Shuffle mode: Pick a random track that is not the current one
+                Random rand = new Random();
+                int newTrackIndex;
+                do
+                {
+                    newTrackIndex = rand.Next(playlist.Count);
+                } while (newTrackIndex == currentTrackIndex && playlist.Count > 1); // Ensure a different track
+                currentTrackIndex = newTrackIndex;
             }
             else
             {
-                MessageBox.Show("Start of playlist.");
-                currentTrackIndex = 0;
+                // Normal mode: Move to the previous track
+                currentTrackIndex--;
+                if (currentTrackIndex < 0)
+                {
+                    if (loop.Checked)
+                    {
+                        currentTrackIndex = playlist.Count - 1; // Loop back to the last track
+                    }
+                    else
+                    {
+                        MessageBox.Show("Start of playlist.");
+                        currentTrackIndex = 0; // Stay at the first track
+                        return;
+                    }
+                }
             }
+
+            PlayCurrentTrack();
+            UpdateLabel();
         }
 
         private void PlayCurrentTrack()
@@ -218,15 +370,43 @@ namespace cmusic
         {
             if (outputDevice != null && outputDevice.PlaybackState == PlaybackState.Stopped)
             {
-                currentTrackIndex++;
-                if (currentTrackIndex < playlist.Count)
+                if (loop_single.Checked)
                 {
+                    // Repeat the current track
+                    PlayCurrentTrack();
+                    UpdateLabel();
+                }
+                else if (loop.Checked)
+                {
+                    // Loop through the playlist
+                    currentTrackIndex++;
+                    if (currentTrackIndex >= playlist.Count)
+                    {
+                        currentTrackIndex = 0; // Start from the beginning
+                    }
+                    PlayCurrentTrack();
+                    UpdateLabel();
+                }
+                else if (shuffle.Checked)
+                {
+                    Random rand = new Random();
+                    currentTrackIndex = rand.Next(0, playlist.Count);
                     PlayCurrentTrack();
                     UpdateLabel();
                 }
                 else
                 {
-                    timer1.Stop();
+                    // Move to the next track or stop if at the end of the playlist
+                    currentTrackIndex++;
+                    if (currentTrackIndex < playlist.Count)
+                    {
+                        PlayCurrentTrack();
+                        UpdateLabel();
+                    }
+                    else
+                    {
+                        timer1.Stop();
+                    }
                 }
             }
         }
@@ -426,6 +606,84 @@ namespace cmusic
         private void visualizerBox_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void SavePlaylist()
+        {
+            if (playlist.Count == 0)
+            {
+                MessageBox.Show("No songs in the playlist to save.", "CMusic", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "CMusic Playlist (*.cmpl)|*.cmpl";
+            sfd.Title = "Save Playlist";
+
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    File.WriteAllLines(sfd.FileName, playlist);
+                    MessageBox.Show("Playlist saved successfully.", "CMusic", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error saving playlist: " + ex.Message, "CMusic", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void LoadPlaylist()
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "CMusic Playlist (*.cmpl)|*.cmpl";
+            ofd.Title = "Load Playlist";
+
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    string[] lines = File.ReadAllLines(ofd.FileName);
+                    List<string> validPaths = new List<string>();
+
+                    foreach (string line in lines)
+                    {
+                        if (File.Exists(line))
+                            validPaths.Add(line);
+                    }
+
+                    if (validPaths.Count == 0)
+                    {
+                        MessageBox.Show("No valid files found in playlist.", "CMusic", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    playlist.Clear();
+                    playlist.AddRange(validPaths);
+                    currentTrackIndex = 0;
+
+                    listBox1.Items.Clear();
+                    foreach (var file in playlist)
+                    {
+                        listBox1.Items.Add(Path.GetFileName(file));
+                    }
+
+                    MessageBox.Show("Playlist loaded successfully.", "CMusic", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error loading playlist: " + ex.Message, "CMusic", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+        private void saveplaylist_click(object sender, EventArgs e)
+        {
+            SavePlaylist();
+        }
+        private void loadplaylist_click(Object sender, EventArgs e)
+        {
+            LoadPlaylist();
         }
     }
 }
